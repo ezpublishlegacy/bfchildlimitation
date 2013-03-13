@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+	Data will be located in two stacks, $userData, $nodeData
+	print statements will work just fine, stuff in <logic> blocks will be eval'd
+	
+	Make sure to set $result to true/false
+	The only actions ever applied will be under rule nodes where $result = true;
+
+	Meaningfull actions for child listing are:
+		turnAllGroupsOff, turnAllGroupsOn,
+		turnGroupsOff(groupName[]), turnGroupsOn(groupName[])
+		removeAllClassesExcept(classId[]), addAllClassesExcept(classId[])
+		removeClasses(classId[]), addClasses(classId[])
+		removeAllGroupClasses(groupName[]), addAllGroupClasses(groupName[])
+		removeAllClasses()
+		
+		- this one is a bit special, groupNames still go in value="", but classIds need to go into classes=""
+		removeAllGroupClassesExcept(groupName[], classId[]), addAllGroupClassesExcept(groupName[], classId[])
+	
+	[] means comma-delimited array
+	So removeClasses action looks like:
+
+	<action name="removeClasses" value="classid1,classid2,etc" />
+-->
+<rules>
+	<rule name="Remove everything first, under main node path.">
+		<logic><![CDATA[
+			$isUnderMainNode = in_array(2, $nodeInfo["pathArray"]);
+			if ($isUnderMainNode) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnAllGroupsOff" />
+		<action name="removeAllClasses" />
+	</rule>
+	<!-- then we build back up -->
+	<include xmlFile="extension/bfchildlimitation/settings/testExclusions.xml" />
+	<rule name="Top node only, only frontpages allowed">
+		<logic><![CDATA[
+			if ($nodeInfo["nodeID"] == 2) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnGroupsOn" value="Content" />
+		<action name="addClasses" value="frontpage" />
+	</rule>
+	<rule name="Basic Content Types">
+		<logic><![CDATA[
+			$inSubpath = in_array(2, $nodeInfo["pathArray"]);
+			$isRightClass = in_array($nodeInfo["classIdentifier"], array("frontpage","folder","article","article_mainpage","article_subpage"));
+			$isRightDepth = $nodeInfo["depth"] >= 2; // can't put articles under top frontpage
+			if ($inSubpath && $isRightClass && $isRightDepth) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnGroupsOn" value="Content" />
+		<action name="addClasses" value="article,folder,article_mainpage,article_subpage" />
+	</rule>
+	<!-- MEDIA section -->
+	<rule name="Media General Disable">
+		<logic><![CDATA[
+			$isUnderMainMediaNode = in_array(43, $nodeInfo["pathArray"]);
+			if ($isUnderMainMediaNode) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnAllGroupsOff" />
+		<action name="turnGroupsOn" value="Content" />
+		<action name="removeAllGroupClasses" value="Content" />
+		<action name="addClasses" value="folder" />
+	</rule>
+	<rule name="Media Reenable Files">
+		<logic><![CDATA[
+			$isUnderMainMediaNode = in_array(43, $nodeInfo["pathArray"]);
+			$isInPathFiles = $nodeInfo["urlAlias"] == "Media/Files";
+			if ($isUnderMainMediaNode && $isInPathFiles) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnGroupsOn" value="Media" />
+		<action name="removeAllGroupClasses" value="Media" />
+		<action name="addClasses" value="file" />
+	</rule>
+	<rule name="Media Reenable Images">
+		<logic><![CDATA[
+			$isUnderMainMediaNode = in_array(43, $nodeInfo["pathArray"]);
+			$isInPathImages= $nodeInfo["urlAlias"] == "Media/Images";
+			if ($isUnderMainMediaNode && $isInPathImages) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnGroupsOn" value="Media" />
+		<action name="removeAllGroupClasses" value="Media" />
+		<action name="addClasses" value="image" />
+	</rule>
+	<rule name="Media Reenable Multimedia">
+		<logic><![CDATA[
+			$isUnderMainMediaNode = in_array(43, $nodeInfo["pathArray"]);
+			$isInPathMultimedia = $nodeInfo["urlAlias"] == "Media/Multimedia";
+			if ($isUnderMainMediaNode && $isInPathMultimedia) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnGroupsOn" value="Media" />
+		<action name="removeAllGroupClasses" value="Media" />
+		<action name="addAllGroupClassesExcept" value="Media" classes="image,file,flash" />
+	</rule>
+	<!-- USER section -->
+	<rule name="Just user groups">
+		<logic><![CDATA[
+			$isUnderMainUserNode = $nodeInfo["nodeID"] == 5;
+			if ($isUnderMainUserNode) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnAllGroupsOff" />
+		<action name="turnGroupsOn" value="Users" />
+		<action name="removeAllClasses" />
+		<action name="addClasses" value="user_group" />
+	</rule>
+	<rule name="Just user groups">
+		<logic><![CDATA[
+			$isUnderMainUserNode = $nodeInfo["nodeID"] == 5;
+			if ($isUnderMainUserNode) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="turnAllGroupsOff" />
+		<action name="turnGroupsOn" value="Users" />
+		<action name="removeAllClasses" />
+		<action name="addClasses" value="user_group" />
+	</rule>
+	<rule name="Under groups, just users">
+		<logic><![CDATA[
+			$isUnderMainUserNode = in_array(5, $nodeInfo["pathArray"]);
+			$isRightClass = $nodeInfo["classIdentifier"] == "user_group";
+			$isRightDepth = $nodeInfo["depth"] >= 2;
+			if ($isUnderMainUserNode && $isRightClass && $isRightDepth) {
+				$result = true;
+			}
+		]]></logic>
+		<action name="removeAllClasses" />
+		<action name="addClasses" value="user" />
+	</rule>
+</rules>
