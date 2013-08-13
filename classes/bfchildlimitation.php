@@ -1,5 +1,4 @@
 <?php
-require_once(dirname(__FILE__)."/"."../../customExtension.php");
 
 class bfchildlimitation extends customExtension {
 	function __construct() {
