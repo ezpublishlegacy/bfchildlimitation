@@ -1,6 +1,6 @@
 <?php
 
-class bfchildlimitation extends customExtension {
+class bfchildlimitation extends bfCustomExtension {
 	function __construct() {
 		parent::__construct();
 	}
