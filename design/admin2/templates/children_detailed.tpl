@@ -200,6 +200,11 @@ f
 {undef $section $visible_columns $locales}
 </script>
 
+{if ezini("General", "Debug", "bfchildlimitation.ini")|eq("1")}
+	{def $logList = ext_bfchildlimitation_getLastActionLog()}
+	{$logList|bfdebug(4, hash("pos", "top"))}
+{/if}
+
 <div id="action-controls-container">
     <div id="action-controls"></div>
     <div id="tpg"></div>

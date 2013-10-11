@@ -1,4 +1,9 @@
 <?php /*
+
+[General]
+#To activate this, you need bfdebug extension, and it will display the full set of rules and their aftermath in an array at the top of the page
+Debug=0
+
 #[ChildListing]
 ExcludeTypes[]
 #Then exclude any types that you don't want to see in your child list

@@ -11,5 +11,6 @@
 	<operator name="ext_bfchildlimitation_recomputeAllowedChildren"> <!-- input: piped big hash of currently allowed classes -->
 		<param name="node" type="any" required="true" />
 	</operator>
+	<operator name="ext_bfchildlimitation_getLastActionLog"></operator>
 	<operator name="ext_getExtraColumnInfo"></operator>
 </operators>

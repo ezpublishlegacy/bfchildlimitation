@@ -142,4 +142,17 @@
 		<action name="removeAllClasses" />
 		<action name="addClasses" value="user" />
 	</rule>
+	<!-- example of rule - you can use it to append $nodeInfo, put items in GLOBAL scope, etc
+		Beaconfire likes to put all of its build-specific nodes in client.ini, section [DefinedNodes], array NodeLookup[USERFRIENDLYNAME]=NODEID
+		So we'll try to harvest that, put in GLOBAL elements
+	-->
+	<rule name="Harvest client-specific node elements">
+		<logic><![CDATA[
+			$clientIni = eZINI::instance("client.ini");
+			$GLOBALS["nodeLookup"] = array();
+			if ($clientIni->hasVariable("DefinedNodes", "NodeLookup")) {
+				$GLOBALS["nodeLookup"] = $clientIni->variable("DefinedNodes", "NodeLookup");
+			}
+		]]></logic>
+	</rule>
 </rules>

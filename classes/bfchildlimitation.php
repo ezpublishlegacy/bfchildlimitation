@@ -1,10 +1,21 @@
 <?php
 
+// because there is a jscore function, we might need to do this explicitly
+// TODO: this should be offloaded then to avoid this include
+if (!class_exists("bfCustomExtension")) { // should be in bfcore for sure
+	include_once(dirname(__FILE__)."/"."bfCustomExtension/bfCustomExtension.php_noauto");
+}
+
 class bfchildlimitation extends bfCustomExtension {
+	private $actionLog = array(); // will contain a hash that will easily describe the state of options after each action taken
 	function __construct() {
 		parent::__construct();
 	}
 	
+	function ext_bfchildlimitation_getLastActionLog($operatorParameters, $namedParams, $pipedParam) {
+		return($this->actionLog);
+	}
+
 	function ext_bfchildlimitation_recomputeAllowedChildren($operatorParameters, $namedParams, $pipedParam) {
 		$currentListOfChildren = $pipedParam;
 		$nodeObj = $namedParams["node"];
@@ -12,7 +23,7 @@ class bfchildlimitation extends bfCustomExtension {
 		// make it a bit easier to work with single items
 		$groupNames = array(); // we'll use this for turning groups on/off
 		$classIdentifiers = array();
-		$classToGroupHash = array(); 
+		$classToGroupHash = array();
 		$groupToClassHash = array();
 		foreach ($currentListOfChildren as $key => $groupHash) {
 			$groupName = $groupHash["group_name"];
@@ -48,10 +59,8 @@ class bfchildlimitation extends bfCustomExtension {
 		// process our rules for exclusion
 		$ruleProcessor = new ruleProcessor();
 		$actionArray = $ruleProcessor->processRuleSet($ruleSetName, $nodeObj);
-//print_r($actionArray);
 
 		// stuff in array will conform to these commands: 
-		//
 		// turnAllGroupsOff, turnAllGroupsOn,
 		// turnGroupsOff(groupName[]), turnGroupsOn(groupName[])
 		// removeAllClassesExcept(classId[]), addAllClassesExcept(classId[])
@@ -59,15 +68,13 @@ class bfchildlimitation extends bfCustomExtension {
 		// removeAllClasses(), addAllClasses()
 		
 		// redo $groupNames, $classIdentifiers first, turn them on and off
-		$this->processGroupClassActions($actionArray, $groupNames, $classIdentifiers, $groupToClassHash, $currentListOfChildren);
-//print_r($groupNames);
-//print_r($classIdentifiers);
-		
+		$this->processGroupClassActions($actionArray, $groupNames, $classIdentifiers, $groupToClassHash);
+
 		$newListOfChildren = $this->excludeNonEligibleGroupsClasses($groupNames, $classIdentifiers, $currentListOfChildren);
-//print_r($newListOfChildren);
 		return($newListOfChildren);
 	}
 
+	// works with our newly modified class/group hashes, returns what they display is expecting - a new simple array of eZContentClass objects
 	function excludeNonEligibleGroupsClasses(&$groupNames, &$classIdentifiers, &$currentListOfChildren) {
 		$newListOfChildren = array();
 		foreach ($currentListOfChildren as $key => $groupHash) {
@@ -78,7 +85,7 @@ class bfchildlimitation extends bfCustomExtension {
 				foreach ($children as $classObj) {
 					$classID = $classObj->Identifier;
 					if ($classIdentifiers[$classID] == 1) {
-						array_push($newChildArr, $classObj); // yup, the child fits, 
+						array_push($newChildArr, $classObj); // yup, the child fits
 					}
 				}
 				$groupHash["items"] = $newChildArr; // replace children array
@@ -87,6 +94,7 @@ class bfchildlimitation extends bfCustomExtension {
 		}
 		return($newListOfChildren);
 	}
+
 	/**
 	 * Changes groupNames, classIdentifiers hash so that the values are 1 or 0 based on actions in action array
 	 * Does a final check and nulls out groups that have no children
@@ -96,7 +104,7 @@ class bfchildlimitation extends bfCustomExtension {
 	 * @param $groupToClassHash - needed for the final check
 	 * @param $currentListOfChildren
 	 */
-	function processGroupClassActions($actionArr, &$groupNames, &$classIdentifiers, $groupToClassHash, $currentListOfChildren) {
+	function processGroupClassActions($actionArr, &$groupNames, &$classIdentifiers, $groupToClassHash) {
 		// turnAllGroupsOff, turnAllGroupsOn,
 		// turnGroupsOff(groupName[]), turnGroupsOn(groupName[])
 		// removeAllClassesExcept(classId[]), addAllClassesExcept(classId[])
@@ -104,6 +112,7 @@ class bfchildlimitation extends bfCustomExtension {
 		// removeAllClasses(), addAllClasses()
 		$actionsExpectingAnArrayParam = array("turnGroupsOff", "turnGroupsOn", "removeAllClassesExcept", "addAllClassesExcept", "removeClasses", "addClasses", "removeAllGroupClasses", "addAllGroupClasses", "addAllGroupClassesExcept", "removeAllGroupClassesExcept");
 		
+		$this->logEasyToReadHashOfCurrentState("INITIAL STATE", $groupNames, $classIdentifiers, $groupToClassHash);
 		// first mark all groups and classIdentifiers as on or off based on actions
 		foreach ($actionArr as $actionHash) {
 			// prep name, values
@@ -119,7 +128,7 @@ class bfchildlimitation extends bfCustomExtension {
 						$groupNames[$groupName] = 0;
 					}
 					break;
-				case "turnAllGroupsOn" : 
+				case "turnAllGroupsOn" :
 					foreach ($groupNames as $groupName => $groupVal) {
 						$groupNames[$groupName] = 1;
 					}
@@ -223,9 +232,20 @@ class bfchildlimitation extends bfCustomExtension {
 					}
 					break;
 			}
+			$noteHash = array(
+				"file" => array_pop(explode("/",$actionHash["fromFile"])),
+				"rule" => $actionHash["fromRule"],
+				"action" => $actionName,
+				"value" => $actionValues
+			);
+			if (array_key_exists("classes", $actionHash)) {
+				$noteHash["classes"] = $actionHash["classes"];
+			}
+			$this->logEasyToReadHashOfCurrentState($noteHash, $groupNames, $classIdentifiers, $groupToClassHash);
 		}
 
-		// now remove groups with no classes
+//		print_r($this->actionLog);
+		// now take the initial array $groupToClassHash, reconcile it with remaining groups and classes
 		foreach ($groupNames as $groupName => $groupVal) {
 			if ($groupVal == 1) {
 				$hasClasses = false;
@@ -240,6 +260,36 @@ class bfchildlimitation extends bfCustomExtension {
 				}
 			}
 		}
+	}
+
+	// no modification, it's a read-only method, but references should speed it up
+	private function logEasyToReadHashOfCurrentState($comingFrom, &$groupNames, &$classIdentifiers, &$groupToClassHash) {
+		$cleanedUpGroupClassHash = $this->getCleanedUpGroupClassHash($groupNames, $classIdentifiers, $groupToClassHash);
+
+		array_push($this->actionLog, array(
+			"note" => $comingFrom,
+			"remainingGroupsClasses" => $cleanedUpGroupClassHash
+		));
+	}
+
+	private function getCleanedUpGroupClassHash(&$groupNames, &$classIdentifiers, $groupToClassHash) {
+		foreach ($groupNames as $groupName => $isActive) {
+			if ($isActive == 0) {
+				unset ($groupToClassHash[$groupName]);
+			} else { // go through its children, adjust active ones
+				foreach ($groupToClassHash[$groupName] as $key => $classIdentifier) {
+					if ($classIdentifiers[$classIdentifier] == 0) {
+						unset ($groupToClassHash[$groupName][$key]);
+					}
+				}
+				// see if any are left
+				if (sizeof($groupToClassHash[$groupName]) == 0) {
+					unset ($groupToClassHash[$groupName]);
+				}
+			}
+
+		}
+		return($groupToClassHash);
 	}
 
 	/**
