@@ -7,6 +7,16 @@ if (!class_exists("bfCustomExtension")) { // should be in bfcore for sure
 }
 
 class bfchildlimitation extends bfCustomExtension {
+	// Extension definitions
+	static $operatorDetailType = "array";
+	static $operatorDetail = array(
+		"ext_bfchildlimitation_recomputeAllowedChildren" => array( // piped in: the big hash of currently allowed classes
+			"node" => array("any", true)
+		),
+		"ext_bfchildlimitation_getLastActionLog" => null,
+		"ext_getExtraColumnInfo" => null,
+	);
+
 	private $actionLog = array(); // will contain a hash that will easily describe the state of options after each action taken
 	function __construct() {
 		parent::__construct();
